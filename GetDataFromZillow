@@ -1,0 +1,152 @@
+import requests
+from bs4 import BeautifulSoup
+import json
+import time
+import csv
+
+class ZillowScraper():
+    results = []
+    headers = {
+"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+"accept-encoding": "gzip, deflate, br",
+"accept-language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
+"cache-control": "max-age=0",
+"cookie": "zguid=23|%24fe19c0c0-4ee0-4027-93eb-a293ac1201ae; zgsession=1|93b57c8e-cfc0-4b5e-ace2-35d79fd8d645; _ga=GA1.2.558781520.1640357315; _gid=GA1.2.381116346.1640357315; zjs_user_id=null; zjs_anonymous_id=%22fe19c0c0-4ee0-4027-93eb-a293ac1201ae%22; _pxvid=926703ba-64c8-11ec-b80b-4b764f497945; _gcl_au=1.1.911899162.1640357316; KruxPixel=true; DoubleClickSession=true; __pdst=5c0ec94841634e318bb715178e20910c; _pin_unauth=dWlkPU5tRmlZelEyT1RndE9UZzVaUzAwT1RBeExUbG1Zek10TURCbFlXVmpPR0kzTWpJMw; utag_main=v_id:017decea46a1004778f31527365805073001706b00900$_sn:1$_se:1$_ss:1$_st:1640359116260$ses_id:1640357316260%3Bexp-session$_pn:1%3Bexp-session$dcsyncran:1%3Bexp-session$tdsyncran:1%3Bexp-session$dc_visit:1$dc_event:1%3Bexp-session$dc_region:us-east-1%3Bexp-session$ttd_uuid:66370e84-a5cd-423b-8b62-26bd28907ff3%3Bexp-session; KruxAddition=true; JSESSIONID=46966BC8BEE9E6521C7AA6FFD63F78D2; _derived_epik=dj0yJnU9MVB4VHNiVkpRcXp6WjdQOFF6UlVCTzFXNlRzcVJsaUUmbj1mMTJJV1VWRjNaQXZudDJpZU5YdzdBJm09MSZ0PUFBQUFBR0hHTnRrJnJtPTEmcnQ9QUFBQUFHSEdOdGs; _uetsid=92e2f13064c811ecb703efacb6026c0d; _uetvid=495756c0d9c011eba585d768186a46d5; _px3=e6c327bbd29512a9c26ebd119f1516ba02a8ad3a40b2375ecf10a85c7fa630ea:zNfiPi5eDFPoc5c5kdTKjf0ABnLN9fOdL+keVEJRXTS0XQNba3/JugSFADwkYXiQAl3LCR4myYiSuJElgxgETw==:1000:2RB7JdeGSIZevGAvjZPVNo5b6gBd9jQVSS9gkMcbafTgNj+kf/WO2IYLuB8wlMZ2/dGaNPeyM2JlEUnm4ISk3c/1I/d7dIKW3SPbvfDRGQPizMuJZgKI6ARqKblyvxuGYG/1RxdgLPe3TyEU5T+V+mpdF2EqIItn+zNdDNEFGc7T/15wUbJcp6E3oYlobh1P8ElXxzz4Juw8S2vBFZu+Hw==; AWSALB=lwlztZqKUMQgU73EHQZIXGg8ZXzF426cdYX+IfyrViyLGCcu3KqTyL3CFZRx6QN5oZHk5TCh31q1reevjqAoFP6nJrHIG1ccR7o55yUZ5xfrOlSG4dDmpCQrjDDM; AWSALBCORS=lwlztZqKUMQgU73EHQZIXGg8ZXzF426cdYX+IfyrViyLGCcu3KqTyL3CFZRx6QN5oZHk5TCh31q1reevjqAoFP6nJrHIG1ccR7o55yUZ5xfrOlSG4dDmpCQrjDDM; search=6|1642972920036%7Crect%3D39.36742104275902%252C-76.40831253808594%252C39.226606334388016%252C-76.83265946191406%26rid%3D3523%26disp%3Dmap%26mdm%3Dauto%26p%3D1%26z%3D1%26fs%3D1%26fr%3D0%26mmm%3D0%26rs%3D0%26ah%3D0%26singlestory%3D0%26housing-connector%3D0%26abo%3D0%26garage%3D0%26pool%3D0%26ac%3D0%26waterfront%3D0%26finished%3D0%26unfinished%3D0%26cityview%3D0%26mountainview%3D0%26parkview%3D0%26waterview%3D0%26hoadata%3D1%26zillow-owned%3D0%263dhome%3D0%26featuredMultiFamilyBuilding%3D0%09%093523%09%09%09%09%09%09",
+"referer": "https://www.zillow.com/homes/21202_rb/",
+"sec-ch-ua": '" Not A;Brand";v="99", "Chromium";v="96", "Google Chrome";v="96"',
+"sec-ch-ua-mobile": "?0",
+"sec-ch-ua-platform": "Windows",
+"sec-fetch-dest": "document",
+"sec-fetch-mode": "navigate",
+"sec-fetch-site": "same-origin",
+"sec-fetch-user": "?1",
+"upgrade-insecure-requests": "1",
+"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36"
+}
+    def fetch(self, url, params):
+        
+        response = requests.get(url, headers= self.headers, params = params)
+        print(response.status_code)
+        return response
+        
+    def parse(self, response):
+        content = BeautifulSoup(response, 'lxml')
+        deck = content.find('ul',{'class':'photo-cards photo-cards_wow photo-cards_short photo-cards_extra-attribution'})
+        for card in deck.contents:
+            script = card.find('script', {'type': 'application/ld+json'})
+            if script:
+                script_json = json.loads(script.contents[0])
+              
+                
+                self.results.append({
+                    'latitude' : script_json['geo']['latitude'],
+                    'longitude' : script_json['geo']['longitude'],
+                    'floorSize' : script_json['floorSize']['value'],
+                    'url' : script_json['url'],
+                    'price' : card.find('div',{'class': 'list-card-price'}).text,
+                    'bedroom' : [li.text for li in card.find('ul', {'class': 'list-card-details'}).find_all('li')][0],
+                    'batghroom' : [li.text for li in card.find('ul', {'class': 'list-card-details'}).find_all('li')][1], 
+                     'type' : [li.text for li in card.find('ul', {'class': 'list-card-details'}).find_all('li')][3] 
+                    
+                })
+    def to_csv(self):
+        with open("Baltimore.csv", 'w') as csv_file:
+            writer = csv.DictWriter(csv_file, fieldnames = self.results[0].keys())
+            writer.writeheader()
+            
+            for row in self.results:
+                writer.writerow(row)  
+
+                     
+    def run(self): 
+        url = "https://www.zillow.com/homes/baltimore_rb/"
+        
+        
+        for page in range(1,20):
+            params = {
+    "searchQueryState": '{"pagination":{"currentPage": %s},"usersSearchTerm":"Baltimore, MD","mapBounds":{"west":-76.83265946191406,"east":-76.40831253808594,"south":39.226606334388016,"north":39.36742104275902},"regionSelection":[{"regionId":3523,"regionType":6}],"isMapVisible":true,"filterState":{"sort":{"value":"globalrelevanceex"},"ah":{"value":true}},"isListVisible":true,"mapZoom":11}'%page
+}
+            
+            res = self.fetch(url, params)
+            self.parse(res.text)
+            self.to_csv()
+            time.sleep(2)
+
+if __name__ == '__main__':
+    scraper = ZillowScraper()
+    scraper.run()
+        
+        
+#Days on zillow
+import requests
+from bs4 import BeautifulSoup
+import json
+import time
+import csv
+import re as re
+import pandas as pd
+data = pd.read_csv('Baltimore.csv')
+
+class ZillowScraper():
+    results = []
+    headers = {
+"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+"accept-encoding": "gzip, deflate, br",
+"accept-language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
+"cache-control": "max-age=0",
+"cookie": "zguid=23|%24fe19c0c0-4ee0-4027-93eb-a293ac1201ae; zgsession=1|93b57c8e-cfc0-4b5e-ace2-35d79fd8d645; _ga=GA1.2.558781520.1640357315; _gid=GA1.2.381116346.1640357315; zjs_user_id=null; zjs_anonymous_id=%22fe19c0c0-4ee0-4027-93eb-a293ac1201ae%22; _pxvid=926703ba-64c8-11ec-b80b-4b764f497945; _gcl_au=1.1.911899162.1640357316; KruxPixel=true; DoubleClickSession=true; __pdst=5c0ec94841634e318bb715178e20910c; _pin_unauth=dWlkPU5tRmlZelEyT1RndE9UZzVaUzAwT1RBeExUbG1Zek10TURCbFlXVmpPR0kzTWpJMw; utag_main=v_id:017decea46a1004778f31527365805073001706b00900$_sn:1$_se:1$_ss:1$_st:1640359116260$ses_id:1640357316260%3Bexp-session$_pn:1%3Bexp-session$dcsyncran:1%3Bexp-session$tdsyncran:1%3Bexp-session$dc_visit:1$dc_event:1%3Bexp-session$dc_region:us-east-1%3Bexp-session$ttd_uuid:66370e84-a5cd-423b-8b62-26bd28907ff3%3Bexp-session; KruxAddition=true; JSESSIONID=46966BC8BEE9E6521C7AA6FFD63F78D2; _derived_epik=dj0yJnU9MVB4VHNiVkpRcXp6WjdQOFF6UlVCTzFXNlRzcVJsaUUmbj1mMTJJV1VWRjNaQXZudDJpZU5YdzdBJm09MSZ0PUFBQUFBR0hHTnRrJnJtPTEmcnQ9QUFBQUFHSEdOdGs; _uetsid=92e2f13064c811ecb703efacb6026c0d; _uetvid=495756c0d9c011eba585d768186a46d5; _px3=e6c327bbd29512a9c26ebd119f1516ba02a8ad3a40b2375ecf10a85c7fa630ea:zNfiPi5eDFPoc5c5kdTKjf0ABnLN9fOdL+keVEJRXTS0XQNba3/JugSFADwkYXiQAl3LCR4myYiSuJElgxgETw==:1000:2RB7JdeGSIZevGAvjZPVNo5b6gBd9jQVSS9gkMcbafTgNj+kf/WO2IYLuB8wlMZ2/dGaNPeyM2JlEUnm4ISk3c/1I/d7dIKW3SPbvfDRGQPizMuJZgKI6ARqKblyvxuGYG/1RxdgLPe3TyEU5T+V+mpdF2EqIItn+zNdDNEFGc7T/15wUbJcp6E3oYlobh1P8ElXxzz4Juw8S2vBFZu+Hw==; AWSALB=lwlztZqKUMQgU73EHQZIXGg8ZXzF426cdYX+IfyrViyLGCcu3KqTyL3CFZRx6QN5oZHk5TCh31q1reevjqAoFP6nJrHIG1ccR7o55yUZ5xfrOlSG4dDmpCQrjDDM; AWSALBCORS=lwlztZqKUMQgU73EHQZIXGg8ZXzF426cdYX+IfyrViyLGCcu3KqTyL3CFZRx6QN5oZHk5TCh31q1reevjqAoFP6nJrHIG1ccR7o55yUZ5xfrOlSG4dDmpCQrjDDM; search=6|1642972920036%7Crect%3D39.36742104275902%252C-76.40831253808594%252C39.226606334388016%252C-76.83265946191406%26rid%3D3523%26disp%3Dmap%26mdm%3Dauto%26p%3D1%26z%3D1%26fs%3D1%26fr%3D0%26mmm%3D0%26rs%3D0%26ah%3D0%26singlestory%3D0%26housing-connector%3D0%26abo%3D0%26garage%3D0%26pool%3D0%26ac%3D0%26waterfront%3D0%26finished%3D0%26unfinished%3D0%26cityview%3D0%26mountainview%3D0%26parkview%3D0%26waterview%3D0%26hoadata%3D1%26zillow-owned%3D0%263dhome%3D0%26featuredMultiFamilyBuilding%3D0%09%093523%09%09%09%09%09%09",
+"referer": "https://www.zillow.com/homes/21202_rb/",
+"sec-ch-ua": '" Not A;Brand";v="99", "Chromium";v="96", "Google Chrome";v="96"',
+"sec-ch-ua-mobile": "?0",
+"sec-ch-ua-platform": "Windows",
+"sec-fetch-dest": "document",
+"sec-fetch-mode": "navigate",
+"sec-fetch-site": "same-origin",
+"sec-fetch-user": "?1",
+"upgrade-insecure-requests": "1",
+"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36"
+}
+    def fetch(self, url, params):
+       
+        response = requests.get(url, headers= self.headers, params = params)
+        return response
+       
+    def parse(self, response, url):
+        content = BeautifulSoup(response, 'lxml')
+        deck = content.find('script',{'id':'hdpApolloPreloadedData'})
+        script_json = json.loads(deck.contents[0])            
+        days_index = script_json['apiCache'].find('daysOnZillow')      
+        unclean_value = script_json['apiCache'][days_index:(days_index+20)]
+        clean_value = int(re.search(r"\d+", unclean_value).group(0))
+        self.results.append({
+                    'url': url,    
+                    'days_on_Zillow' : clean_value                    
+        })
+  
+    def to_csv(self):
+        with open("Baltimore_days_on_zillow.csv", 'w',newline='') as csv_file:
+            writer = csv.DictWriter(csv_file, fieldnames = self.results[0].keys())
+            writer.writeheader()
+           
+            for row in self.results:
+                writer.writerow(row)  
+
+                     
+    def run(self):       
+        url = data.url[i]
+       
+        for page in range(1,2):
+            params = {
+    "searchQueryState": '{"pagination":{"currentPage": %s},"usersSearchTerm":"Baltimore, MD","mapBounds":{"west":-76.83265946191406,"east":-76.40831253808594,"south":39.226606334388016,"north":39.36742104275902},"regionSelection":[{"regionId":3523,"regionType":6}],"isMapVisible":true,"filterState":{"sort":{"value":"globalrelevanceex"},"ah":{"value":true}},"isListVisible":true,"mapZoom":11}'%page
+}
+           
+            res = self.fetch(url, params)
+            self.parse(res.text,url)
+            self.to_csv()
+            time.sleep(2)
+
+
+for i in range(data.shape[0]):
+    if __name__ == '__main__':
+        scraper = ZillowScraper()
+        scraper.run()
